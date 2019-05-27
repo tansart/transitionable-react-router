@@ -1,0 +1,43 @@
+{
+  "name": "@stilva/transitionable-react-router",
+  "version": "1.0.0",
+  "description": "",
+  "main": "./dist/transitionableReactRouter.cjs.js",
+  "scripts": {
+    "start": "BABEL_ENV=build rollup -c ./rollup.config.js --watch",
+    "build": "BABEL_ENV=build rollup -c ./rollup.config.js --compact",
+    "test": "CI=true BABEL_ENV=test jest --watch --colors"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stilva/transitionable-react-router.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/stilva/transitionable-react-router/issues"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "npm run build"
+    }
+  },
+  "homepage": "https://github.com/stilva/transitionable-react-router#readme",
+  "devDependencies": {
+    "@babel/core": "^7.2.2",
+    "@babel/preset-env": "^7.2.3",
+    "@babel/preset-react": "^7.0.0",
+    "babel-core": "^6.26.3",
+    "babel-plugin-transform-react-jsx": "^6.24.1",
+    "babel-preset-env": "^1.7.0",
+    "husky": "^1.3.1",
+    "jest": "^23.6.0",
+    "react": "16.9.0-alpha.0",
+    "react-dom": "16.9.0-alpha.0",
+    "react-testing-library": "^7.0.1",
+    "rollup": "^1.12.5",
+    "rollup-plugin-babel": "^4.3.2",
+    "rollup-plugin-node-resolve": "^4.2.4",
+    "rollup-plugin-terser": "^4.0.4"
+  }
+}
