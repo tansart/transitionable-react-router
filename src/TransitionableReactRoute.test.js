@@ -1,6 +1,5 @@
 import React, {useEffect, useRef} from 'react';
-import {act} from 'react-dom/test-utils';
-import {render, cleanup, waitForDomChange} from 'react-testing-library';
+import {render, cleanup, waitForDomChange, act} from 'react-testing-library';
 
 import {RouterContext} from './RouterContext';
 import {TransitionableReactRoute} from './TransitionableReactRoute';
@@ -32,6 +31,34 @@ describe("#TransitionableReactRoute", () => {
     expect(queryByTestId('/route-two')).toBeDefined();
     expect(queryByTestId('/')).toBeUndefined();
     expect(queryByTestId('/route-one')).toBeUndefined();
+  });
+
+  it('only shows the targeted section even when nested', async () => {
+    const props = {
+      rootRoute: '/nested',
+      currentRoute: '/',
+      timeout: 0
+    };
+
+    const {queryByTestId, rerender} = render(<TestNestedWrapper {...props}/>);
+    await waitForDomChange({container: document.body});
+    expect(queryByTestId('/nested/')).toBeDefined();
+    expect(queryByTestId('/nested/route-one')).toBeUndefined();
+    expect(queryByTestId('/nested/route-two')).toBeUndefined();
+
+    props.currentRoute = '/route-one';
+    rerender(<TestNestedWrapper {...props}/>);
+    await waitForDomChange({container: document.body});
+    expect(queryByTestId('/nested/route-one')).toBeDefined();
+    expect(queryByTestId('/nested/')).toBeUndefined();
+    expect(queryByTestId('/nested/route-two')).toBeUndefined();
+
+    props.currentRoute = '/route-two';
+    rerender(<TestNestedWrapper {...props} />);
+    await waitForDomChange({container: document.body});
+    expect(queryByTestId('/nested/route-two')).toBeDefined();
+    expect(queryByTestId('/nested/')).toBeUndefined();
+    expect(queryByTestId('/nested/route-one')).toBeUndefined();
   });
 
   it('sets its children animation props accordingly', async () => {
@@ -78,6 +105,21 @@ function TestWrapper({currentRoute, timeout}) {
       <DisplayPath path={'/'}/>
       <DisplayPath path={'/route-one'}/>
       <DisplayPath path={'/route-two'}/>
+    </TransitionableReactRoute>
+  </RouterContext.Provider>
+}
+
+function TestNestedWrapper(props) {
+  const {rootRoute, currentRoute, timeout} = props;
+  const prevRoute = useRef(null);
+  useEffect(() => {
+    prevRoute.current = currentRoute;
+  }, [currentRoute]);
+
+  return <RouterContext.Provider value={{currentRoute, previousRoute: prevRoute.current}}>
+    <TransitionableReactRoute path={rootRoute} timeout={timeout}>
+      <TestWrapper {...props} />
+      <DisplayPath path={'/route-three'}/>
     </TransitionableReactRoute>
   </RouterContext.Provider>
 }
