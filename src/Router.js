@@ -1,1 +1,3 @@
-export function Router() {}
+export function Router({children}) {
+  return children;
+}
