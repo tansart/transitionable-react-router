@@ -1,6 +1,5 @@
 import React, {useState, useEffect, useRef} from 'react';
-import { prettyDOM } from '@testing-library/dom'
-import {render, cleanup, fireEvent, waitForDomChange, act} from '@testing-library/react';
+import {render, cleanup, fireEvent, act} from '@testing-library/react';
 
 import {RouterContext} from './RouterContext';
 import {TransitionableReactRoute} from './TransitionableReactRoute';
@@ -151,8 +150,6 @@ describe("#TransitionableReactRoute", () => {
     await act(async () => await pSleep(props.timeout * .6));
 
     expect(queryByTestId('/nested/route-two').dataset.transitionstate).toBe('entered');
-    // '/' must be in exiting state
-    // '/route-one' must be in entering state
   });
 
   /*it('properly handles a quick sequence of animation prop changes', async () => {
@@ -166,10 +163,6 @@ describe("#TransitionableReactRoute", () => {
   });*/
 
 });
-
-function t(start) {
-  return (Date.now() - start)/1000;
-}
 
 function TestWrapper(props) {
   const {animateOnMount, timeout} = props;
