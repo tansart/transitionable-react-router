@@ -63,12 +63,12 @@ export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, ani
   if (!routes.current.length) {
     // We create a data structure representing the available routes + their regexp
     React.Children.forEach(children, _child => {
-      const {path} = _child.props;
+      const {path, defaultPath} = _child.props;
       const isTransitionableComponent = (_child.type === TransitionableReactRoute);
 
       const properties = {
         ..._child.props,
-        fullPath: normalisePath(`${nestedRoute ? nestedRoute: ''}/${path}`),
+        fullPath: defaultPath ? 'defaultPath': normalisePath(`${nestedRoute ? nestedRoute: ''}/${path}`),
         timeout
       };
 
@@ -79,7 +79,11 @@ export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, ani
 
       const child = React.cloneElement(_child, properties);
 
-      routes.current.push(mapToRegExp([child, path, nestedRoute], isTransitionableComponent));
+      if(defaultPath) {
+        routes.current.push([/.*/ig, true, child]);
+      } else {
+        routes.current.push(mapToRegExp([child, path, nestedRoute], isTransitionableComponent));
+      }
     });
   }
 

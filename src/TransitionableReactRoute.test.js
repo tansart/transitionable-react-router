@@ -7,6 +7,17 @@ import {TransitionableReactRoute} from './TransitionableReactRoute';
 afterEach(cleanup);
 
 describe("#TransitionableReactRoute", () => {
+  it('falls back to the default route', async () => {
+    const props = {
+      currentRoute: '/route-unknown',
+      timeout: 0
+    };
+
+    const {queryByTestId} = render(<TestWrapper {...props}/>);
+
+    expect(queryByTestId('defaultPath')).toBeDefined();
+  });
+
   it('only shows the targeted section', async () => {
     const props = {
       currentRoute: '/route-three',

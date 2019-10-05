@@ -19,7 +19,7 @@
   },
   "husky": {
     "hooks": {
-      "pre-commit": "npm run build"
+      "pre-commit": "npm run build && git add ./dist"
     }
   },
   "homepage": "https://github.com/stilva/transitionable-react-router#readme",
