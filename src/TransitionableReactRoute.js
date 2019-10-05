@@ -45,7 +45,7 @@ export function mapToRegExp([component, path, parentPath], isNested = false) {
   return [new RegExp(`${regExp}$`, 'ig'), isDynamic, component];
 }
 
-export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, animateOnMount, children, lvl, __isTransitionableComponent}) {
+export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, animateOnMount, children}) {
   const now = Date.now();
   const routes = useRef([]);
   const timeoutRefs = useRef([]);
@@ -72,8 +72,6 @@ export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, ani
         timeout
       };
 
-      properties['__isTransitionableComponent'] = !!isTransitionableComponent;
-
       if(isTransitionableComponent) {
         // force the same timeout everywhere
         properties.animateOnMount = animateOnMount;
@@ -88,7 +86,7 @@ export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, ani
   useEffect(() => () => {
     timeoutRefs.current.forEach(clearTimeout);
     timeoutRefs.current = [];
-  }, [])
+  }, []);
 
   useEffect(() => {
     setState(s => {
@@ -96,9 +94,10 @@ export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, ani
       const now = Date.now();
 
       const latestRoute = (last(nState) || {}).currentRoute;
-      const isParent = greedyMatchComponent(routes.current, latestRoute).type === TransitionableReactRoute;
+      const isParent = greedyMatchComponent(routes.current, currentRoute).type === TransitionableReactRoute;
+      const isPrevParent = greedyMatchComponent(routes.current, latestRoute).type === TransitionableReactRoute;
 
-      if(!isParent) {
+      if(!isPrevParent || !isParent) {
         nState.push({
           state: animateOnMount ? 0: 1,
           key,
@@ -148,6 +147,11 @@ export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, ani
   return useMemoisedUpdate(() => {
     return state.map(({currentRoute, key, state}) => {
       const matchedComponent = greedyMatchComponent(routes.current, currentRoute);
+
+      if(!matchedComponent.type) {
+        return null;
+      }
+
       return React.createElement(
         matchedComponent.type,
         {
@@ -197,7 +201,7 @@ function useMemoisedUpdate(fn, diff) {
   return currState;
 }
 
-function normalisePath(path) {
+function normalisePath(path = '') {
   return path.replace('//', '/');
 }
 
