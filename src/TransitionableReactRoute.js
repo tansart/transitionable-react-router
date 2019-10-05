@@ -45,11 +45,10 @@ export function mapToRegExp([component, path, parentPath], isNested = false) {
   return [new RegExp(`${regExp}$`, 'ig'), isDynamic, component];
 }
 
-
-export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, animateOnMount, children, lvl}) {
+export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, animateOnMount, children, lvl, __isTransitionableComponent}) {
   const now = Date.now();
   const routes = useRef([]);
-  const mountedComponents = useRef([]);
+  const timeoutRefs = useRef([]);
 
   const router = useContext(RouterContext);
   const currentRoute = router.currentRoute;
@@ -57,12 +56,7 @@ export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, ani
   // The state will hold an abstract list of mounted components.
   // Should be in sync with mountedComponents
   const key = `${currentRoute}_${now}`;
-  const [state, setState] = useState([{
-    state: animateOnMount ? 0: 1,
-    key,
-    timestamp : now,
-    currentRoute
-  }]);
+  const [state, setState] = useState([]);
 
   // Only runs once on mount.
   // Needs to run before the first render, hence the use of ref vs useEffect
@@ -78,7 +72,10 @@ export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, ani
         timeout
       };
 
-      if(isTransitionableComponent && _child.props.animateOnMount == undefined) {
+      properties['__isTransitionableComponent'] = !!isTransitionableComponent;
+
+      if(isTransitionableComponent) {
+        // force the same timeout everywhere
         properties.animateOnMount = animateOnMount;
       }
 
@@ -88,63 +85,90 @@ export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, ani
     });
   }
 
+  useEffect(() => () => {
+    timeoutRefs.current.forEach(clearTimeout);
+    timeoutRefs.current = [];
+  }, [])
+
   useEffect(() => {
-    let newState = [...state];
+    setState(s => {
+      const nState = [...s];
+      const now = Date.now();
 
-    const now = Date.now();
-    const latest = last(state);
+      const latestRoute = (last(nState) || {}).currentRoute;
+      const isParent = greedyMatchComponent(routes.current, latestRoute).type === TransitionableReactRoute;
 
-    if(latest.currentRoute === currentRoute) {
-      if(latest.state === 0) {
-        if(now - latest.timestamp >= timeout) {
-          newState[newState.length - 1].state = 1;
-          setState(newState)
-        } else {
-          setTimeout(_ => { setState(newState) }, timeout);
-        }
+      if(!isParent) {
+        nState.push({
+          state: animateOnMount ? 0: 1,
+          key,
+          timestamp : now,
+          currentRoute
+        });
       }
-    } else {
-      console.log('new state push', key)
-      newState.push({
-        state: animateOnMount ? 0: 1,
-        key,
-        timestamp : now,
-        currentRoute
-      });
 
-      newState[newState.length - 2].state = 2;
-      newState[newState.length - 2].timestamp = now;
+      if(nState.length > 1) {
+        nState[nState.length - 2] = {
+          ...nState[nState.length - 2],
+          now,
+          state: 2
+        };
+      }
 
-      setState(newState);
-    }
+      timeoutRefs.current.push(setTimeout(() => {
+        setState(s => {
+          let dirty = false;
+          const now = Date.now();
+          const newState = [...s];
 
-    const filteredState = newState.filter(s => !(now - s.timestamp >= timeout && s.state === 2));
+          for(let i in newState) {
+            const nextTransitionState = getNextState(newState[i].state);
+            if(now - newState[i].timestamp >= timeout && nextTransitionState !== newState[i].state) {
+              dirty = true;
+              newState[i] = {
+                ...newState[i],
+                state: nextTransitionState
+              };
+            }
+          }
 
-    if(newState.length !== filteredState.length) {
-      setState(filteredState);
-    }
-  }, [currentRoute, state]);
+          if(dirty) {
+            return newState.filter(({state}) => state < 3);
+          }
+
+          return s;
+        });
+      }, timeout));
+
+      return nState;
+    });
+  }, [currentRoute]);
 
   // This replaces useMemo with semantic guarantee
   return useMemoisedUpdate(() => {
-    const components = [];
-
-    console.log(lvl, state)
-    for ( let i in state) {
-      const matchedComponent = greedyMatchComponent(routes.current, state[i].currentRoute);
-      console.log('>>>', matchedComponent.type.name)
-      components.push(React.createElement(
+    return state.map(({currentRoute, key, state}) => {
+      const matchedComponent = greedyMatchComponent(routes.current, currentRoute);
+      return React.createElement(
         matchedComponent.type,
         {
-          key: state[i].key,
+          key,
           ...matchedComponent.props,
-          // need to check if first mount.
-          transitionState: TRANSITION_STATES[state[i].state]
+          transitionState: TRANSITION_STATES[state]
         }
-      ));
-    }
-    return components;
+      );
+    });
   }, [state]);
+}
+
+function getNextState(state) {
+  switch (state) {
+    case 0:
+      return 1;
+    case 2:
+      return 3;
+    default:
+      return state;
+  }
 }
 
 function greedyMatchComponent(routes, currentRoute) {
@@ -159,165 +183,15 @@ function greedyMatchComponent(routes, currentRoute) {
 
     return component;
   }
-}
 
-export function __TransitionableReactRoute({path: nestedRoute, timeout = 1000, animateOnMount, children}) {
-  const router = useContext(RouterContext);
-  const currentRoute = router.currentRoute;
-
-  // The state will hold an abstract list of mounted components.
-  // Should be in sync with mountedComponents
-  const key = `${currentRoute}_${Date.now()}`;
-  const [state, setState] = useState([{
-    state: animateOnMount ? 1: 0,
-    key,
-    currentRoute
-  }]);
-  // `${animateOnMount ? "showing_": "shown_"}${currentRoute}`
-
-  const routes = useRef([]);
-  const mountedComponents = useRef([]);
-
-  let isMounted = true;
-
-  // unmount cleanup
-  useEffect(() => () => {
-    isMounted = false;
-  }, []);
-
-  // Only runs once on mount.
-  // Needs to run before the first render, hence the use of ref vs useEffect
-  if (!routes.current.length) {
-    // We create a data structure representing the available routes + their regexp
-    React.Children.forEach(children, _child => {
-      const {path} = _child.props;
-      const isTransitionableComponent = (_child.type === TransitionableReactRoute);
-
-      const properties = {
-        ..._child.props,
-        fullPath: normalisePath(`${nestedRoute ? nestedRoute: ''}/${path}`),
-        timeout
-      };
-
-      if(isTransitionableComponent && _child.props.animateOnMount == undefined) {
-        properties.animateOnMount = animateOnMount;
-      }
-
-      const child = React.cloneElement(_child, properties);
-
-      routes.current.push(mapToRegExp([child, path, nestedRoute], isTransitionableComponent));
-    });
-  }
-
-  // This replaces useMemo with semantic guarantee
-  const mComponents = useMemoisedUpdate(() => {
-    let components = mountedComponents.current.map(component => {
-      // set all mounted components to exiting
-      return React.cloneElement(component, {
-        ...component.props,
-        transitionState: TRANSITION_STATES[2]
-      })
-    });
-
-    for (let [regExp, isDynamic, component] of routes.current) {
-      regExp.lastIndex = 0;
-
-      const match = regExp.exec(currentRoute);
-
-      if (!match) {
-        continue;
-      }
-
-      // if the latest state matches the current URL, then we should ignore this state update
-      /*if(components.length) {
-        const last = components[components.length - 1];
-        regExp.lastIndex = 0;
-        if(regExp.exec(last.props.fullPath)) {
-          console.log("### matching ###", last.props.transitionState);
-          // matching routes
-          if(last.props.transitionState === TRANSITION_STATES[0]) {
-            components[components.length - 1] = React.cloneElement(
-              last,
-              {
-                ...last.props,
-                key: last.key,
-                transitionState: TRANSITION_STATES[1]
-              }
-            );
-          }
-          // if the state update is due to entering -> entered
-          // check shown/showing then update transitionState
-          // but ideally we should move this logic when cloning the elements.
-          break;
-        }
-      }*/
-
-      /*const key = isDynamic.reduce((acc, _isDynamic, index) => {
-        if (_isDynamic) {
-          properties[_isDynamic] = match[index + 1];
-        }
-
-        const separator = index > 0 ? '/' : '';
-        return `${acc}${separator}${match[index + 1] || ''}`;
-      }, '') || '/';*/
-
-      components.push(
-        React.createElement(
-          component.type,
-          {
-            key,
-            ...component.props,
-            // need to check if first mount.
-            transitionState: TRANSITION_STATES[animateOnMount ? 0: 1]
-          }
-        )
-      );
-
-      break;
-    }
-
-    mountedComponents.current = components;
-
-    return components;
-  }, [state]);
-
-  const lastComponent = mComponents[mComponents.length - 1];
-
-  // on route updates, update the state
-  /*useEffect(() => {
-    // on route change
-    const delay = lastComponent && lastComponent.type == TransitionableReactRoute ? 0: timeout;
-    setTimeout(() => {
-      isMounted && setState(`shown_${currentRoute}`);
-    }, state.indexOf('shown_') > -1 ? 0: delay);
-  }, [currentRoute]);*/
-  useEffect(() => {
-    // on route change & on mount
-    const latestState = state[state.length - 1];
-    if(latestState.state === 0 && latestState.currentRoute === currentRoute) {
-      setTimeout(() => {
-        latestState.state = 1;
-        setState(Array.from(state))
-      }, timeout)
-    } else if (latestState.currentRoute === currentRoute) {
-      setTimeout(() => {
-        setState([...state, {
-          state: 0,
-          key,
-          currentRoute
-        }])
-      }, timeout)
-    }
-  }, [currentRoute]);
-
-  return mComponents;
+  return {};
 }
 
 function useMemoisedUpdate(fn, diff) {
   const [currState, setState] = useState([]);
 
   useEffect(() => {
-    setState(fn(currState))
+    setState(currState => fn(currState))
   }, diff);
 
   return currState;

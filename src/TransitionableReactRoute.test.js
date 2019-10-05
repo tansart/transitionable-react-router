@@ -26,6 +26,7 @@ describe("#TransitionableReactRoute", () => {
 
     fireEvent.click(queryByTestId('path::/route-five'));
     await act(async () => await pSleep(props.timeout));
+
     expect(queryByTestId('/route-three')).toBeNull();
     expect(queryByTestId('/route-four')).toBeNull();
     expect(queryByTestId('/route-five')).toBeDefined();
@@ -81,33 +82,75 @@ describe("#TransitionableReactRoute", () => {
   it('sets its nested children animation props accordingly', async () => {
     const props = {
       animateOnMount: true,
+      currentRoute: '/nested/',
+      timeout: 100
+    };
+
+    const {queryByTestId} = render(<TestWrapper {...props}/>);
+
+    expect(queryByTestId('/nested/').dataset.transitionstate).toBe('entering');
+
+    fireEvent.click(queryByTestId('path::/nested/route-one'));
+    fireEvent.click(queryByTestId('path::/nested/route-two'));
+
+    expect(queryByTestId('/nested/route-two').dataset.transitionstate).toBe('entering');
+
+    await act(async () => await pSleep(props.timeout));
+
+    expect(queryByTestId('/nested/route-two').dataset.transitionstate).toBe('entered');
+  });
+
+  it('sets its nested children animation props accordingly', async () => {
+    const props = {
+      animateOnMount: true,
       currentRoute: '/nested/route-one',
       timeout: 100
     };
 
-    const start = Date.now();
-    const {queryByTestId, debug} = render(<TestWrapper {...props}/>);
-    console.log(t(start));
-    debug();
-
+    const {queryByTestId} = render(<TestWrapper {...props}/>);
     expect(queryByTestId('/nested/route-one').dataset.transitionstate).toBe('entering');
 
-    await act(async () => await pSleep(props.timeout));
-    console.log(t(start));
-    debug();
-    expect(queryByTestId('/nested/route-one').dataset.transitionstate).toBe('entered');
-
     fireEvent.click(queryByTestId('path::/nested/route-two'));
-    console.log(t(start));
-    debug();
+
     await act(async () => await pSleep(props.timeout * .5));
-    // use enum/static const
+
+    expect(queryByTestId('/nested/route-one').dataset.transitionstate).toBe('exiting');
+    expect(queryByTestId('/nested/route-two').dataset.transitionstate).toBe('entering');
+  });
+
+  it('sets its nested children animation props accordingly', async () => {
+    const props = {
+      animateOnMount: true,
+      currentRoute: '/route-three',
+      timeout: 100
+    };
+
+    const {queryByTestId} = render(<TestWrapper {...props}/>);
+
+    expect(queryByTestId('/route-three').dataset.transitionstate).toBe('entering');
+
+    fireEvent.click(queryByTestId('path::/nested/'));
+
+    expect(queryByTestId('/nested/').dataset.transitionstate).toBe('entering');
+
+    await act(async () => await pSleep(props.timeout));
+
+    expect(queryByTestId('/nested/').dataset.transitionstate).toBe('entered');
+    fireEvent.click(queryByTestId('path::/nested/route-one'));
+
+    await act(async () => await pSleep(props.timeout));
+
+    expect(queryByTestId('/nested/route-one').dataset.transitionstate).toBe('entered');
+    fireEvent.click(queryByTestId('path::/nested/route-two'));
+
+    await act(async () => await pSleep(props.timeout * .5));
+
     expect(queryByTestId('/nested/route-one').dataset.transitionstate).toBe('exiting');
     expect(queryByTestId('/nested/route-two').dataset.transitionstate).toBe('entering');
 
-    await pSleep(props.timeout);
-    expect(queryByTestId('/').dataset.transitionstate).toBeNull();
-    expect(queryByTestId('/route-one').dataset.transitionstate).toBe('entered');
+    await act(async () => await pSleep(props.timeout * .6));
+
+    expect(queryByTestId('/nested/route-two').dataset.transitionstate).toBe('entered');
     // '/' must be in exiting state
     // '/route-one' must be in entering state
   });
@@ -121,6 +164,7 @@ describe("#TransitionableReactRoute", () => {
 
     // scenario 3: allow to force the state vs pop...?
   });*/
+
 });
 
 function t(start) {
@@ -146,7 +190,10 @@ function TestWrapper(props) {
         '/nested/route-two',
         '/route-three',
         '/route-four',
-        '/route-five'
+        '/route-five',
+        '/nested-two/',
+        '/nested-two/one',
+        '/nested-two/two'
       ]}
       handler={setRoute}
     />
@@ -157,9 +204,16 @@ function TestWrapper(props) {
           <DisplayPath path={'/route-one'}/>
           <DisplayPath path={'/route-two'}/>
         </TransitionableReactRoute>
+
         <DisplayPath path={'/route-three'}/>
         <DisplayPath path={'/route-four'}/>
         <DisplayPath path={'/route-five'}/>
+
+        <TransitionableReactRoute path={'/nested-two'} lvl={'child'}>
+          <DisplayPath path={'/'}/>
+          <DisplayPath path={'/one'}/>
+          <DisplayPath path={'/two'}/>
+        </TransitionableReactRoute>
       </TransitionableReactRoute>
     </RouterContext.Provider>
   </>
@@ -170,7 +224,6 @@ function Nav({paths, handler}) {
     key={`key-${path}`}
     data-testid={`path::${path}`}
     onClick={() => {
-      console.log('onClick', path)
       handler(path);
     }}
   />)
