@@ -3,7 +3,7 @@ import React, {useContext, useEffect, useState, useRef} from 'react';
 import {RouterContext} from './RouterContext';
 
 const TRANSITION_STATES = ['entering', 'entered', 'exiting', 'exited'];
-
+const NEXT_STEP_MAP = [1,1,3,3];
 /**
  * Given a pseudo url, we create an array that contains a regExp to match against a url,
  * an array indicating any dynamic url (/static/:dynamic_file_name), which will become a props,
@@ -80,7 +80,7 @@ export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, ani
       const child = React.cloneElement(_child, properties);
 
       if(defaultPath) {
-        routes.current.push([/.*/ig, true, child]);
+        routes.current.push([/.*/ig, [false], child]);
       } else {
         routes.current.push(mapToRegExp([child, path, nestedRoute], isTransitionableComponent));
       }
@@ -98,8 +98,12 @@ export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, ani
       const now = Date.now();
 
       const latestRoute = (last(nState) || {}).currentRoute;
-      const isParent = greedyMatchComponent(routes.current, currentRoute).type === TransitionableReactRoute;
-      const isPrevParent = greedyMatchComponent(routes.current, latestRoute).type === TransitionableReactRoute;
+
+      const prevComponent = greedyMatchComponent(routes.current, currentRoute);
+      const nextComponent = greedyMatchComponent(routes.current, latestRoute);
+
+      const isParent = prevComponent.component && prevComponent.component.type === TransitionableReactRoute;
+      const isPrevParent = nextComponent.component && nextComponent.component.type === TransitionableReactRoute;
 
       if(!isPrevParent || !isParent) {
         nState.push({
@@ -125,7 +129,7 @@ export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, ani
           const newState = [...s];
 
           for(let i in newState) {
-            const nextTransitionState = getNextState(newState[i].state);
+            const nextTransitionState = NEXT_STEP_MAP[newState[i].state];
             if(now - newState[i].timestamp >= timeout && nextTransitionState !== newState[i].state) {
               dirty = true;
               newState[i] = {
@@ -152,31 +156,21 @@ export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, ani
     return state.map(({currentRoute, key, state}) => {
       const matchedComponent = greedyMatchComponent(routes.current, currentRoute);
 
-      if(!matchedComponent.type) {
+      if(!matchedComponent.component) {
         return null;
       }
 
       return React.createElement(
-        matchedComponent.type,
+        matchedComponent.component.type,
         {
           key,
-          ...matchedComponent.props,
+          ...matchedComponent.component.props,
+          query: matchedComponent.query,
           transitionState: TRANSITION_STATES[state]
         }
       );
     });
   }, [state]);
-}
-
-function getNextState(state) {
-  switch (state) {
-    case 0:
-      return 1;
-    case 2:
-      return 3;
-    default:
-      return state;
-  }
 }
 
 function greedyMatchComponent(routes, currentRoute) {
@@ -189,10 +183,21 @@ function greedyMatchComponent(routes, currentRoute) {
       continue;
     }
 
-    return component;
+    return {
+      component,
+      query: isDynamic.reduce((acc, curr, i) => {
+        if(curr) {
+          return {
+            ...acc,
+            [curr]: match[i + 1]
+          }
+        }
+        return acc;
+      }, {}),
+    };
   }
 
-  return {};
+  return { component: null, attributes: null };
 }
 
 function useMemoisedUpdate(fn, diff) {

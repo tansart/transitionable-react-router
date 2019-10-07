@@ -15,7 +15,7 @@ describe("#TransitionableReactRoute", () => {
 
     const {queryByTestId} = render(<TestWrapper {...props}/>);
 
-    expect(queryByTestId('defaultPath')).toBeDefined();
+    expect(queryByTestId('defaultPath')).toBeTruthy();
   });
 
   it('only shows the targeted section', async () => {
@@ -25,16 +25,16 @@ describe("#TransitionableReactRoute", () => {
     };
     const {queryByTestId, debug} = render(<TestWrapper {...props}/>);
 
-    expect(queryByTestId('/route-three')).toBeDefined();
+    expect(queryByTestId('/route-three')).toBeTruthy();
     expect(document.querySelectorAll("[data-transitionstate]").length).toEqual(1);
 
     fireEvent.click(queryByTestId('path::/nested/'));
     await act(async () => await pSleep(props.timeout));
-    expect(queryByTestId('/nested/')).toBeDefined();
+    expect(queryByTestId('/nested/')).toBeTruthy();
     expect(document.querySelectorAll("[data-transitionstate]").length).toEqual(1);
 
     fireEvent.click(queryByTestId('path::/route-five'));
-    expect(queryByTestId('/route-five')).toBeDefined();
+    expect(queryByTestId('/route-five')).toBeTruthy();
     await act(async () => await pSleep(props.timeout));
     expect(document.querySelectorAll("[data-transitionstate]").length).toEqual(1);
   });
@@ -103,6 +103,23 @@ describe("#TransitionableReactRoute", () => {
     expect(queryByTestId('/nested/route-two').dataset.transitionstate).toBe('entered');
   });
 
+  it('understands dynamic routes', async () => {
+    const props = {
+      currentRoute: '/dynamic/route-one',
+      timeout: 0
+    };
+
+    const {queryByTestId} = render(<TestWrapper {...props}/>);
+    expect(queryByTestId('/dynamic/:route').dataset.route).toBe('route-one');
+    await act(async () => await pSleep(1));
+    fireEvent.click(queryByTestId('path::/nested/route-one'));
+    expect(queryByTestId('/nested/route-one')).toBeTruthy();
+    await act(async () => await pSleep(1));
+    fireEvent.click(queryByTestId('path::/dynamic-two/route-two'));
+    await act(async () => await pSleep(1));
+    expect(queryByTestId('/dynamic-two/:random-attribute').dataset.randomAttribute).toBe('route-two');
+  });
+
   /*it('properly handles a quick sequence of animation prop changes', async () => {
     // let the user dictate how to handle this
 
@@ -136,7 +153,7 @@ function TestWrapper(props) {
         '/route-four',
         '/route-five',
         '/dynamic/route-one',
-        '/dynamic/route-two',
+        '/dynamic-two/route-two',
         '/nested-two/',
         '/nested-two/one',
         '/nested-two/two'
@@ -156,6 +173,7 @@ function TestWrapper(props) {
         <DisplayPath path={'/route-five'} />
 
         <DisplayPath path={'/dynamic/:route'} />
+        <DisplayPath path={'/dynamic-two/:random-attribute'} />
 
         <TransitionableReactRoute path={'/nested-two'}>
           <DisplayPath path={'/'} />
@@ -179,8 +197,17 @@ function Nav({paths, handler}) {
   />)
 }
 
-function DisplayPath({path, transitionState, fullPath}) {
-  return <span data-testid={fullPath} data-transitionstate={transitionState}>{path}</span>;
+function DisplayPath({path, transitionState, fullPath, query = {}}) {
+  const routes = Object.keys(query).reduce((acc, k) => {
+    acc[`data-${k.toLowerCase()}`] = query[k];
+    return acc;
+  }, {}) || {};
+
+  return React.createElement('span', {
+    'data-testid': fullPath,
+    'data-transitionstate': transitionState,
+    ...routes
+  }, path);
 }
 
 function pSleep(time) {
