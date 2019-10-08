@@ -36,7 +36,7 @@ export function mapToRegExp([component, path, parentPath], isNested = false) {
   let regExp = regExpPattern;
   if(isNested) {
     // when nested, we need the regExp to have a wildcard match
-    regExp = `${regExpPattern}.*`;
+    regExp = `${regExpPattern}\\/.*`;
   } else if(path === '/') {
     // given the filter above, we need to have this exception where '/' is added when needed
     regExp = `${regExpPattern}\\/`;
