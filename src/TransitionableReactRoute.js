@@ -189,7 +189,7 @@ function greedyMatchComponent(routes, currentRoute) {
         if(curr) {
           return {
             ...acc,
-            [curr]: match[i + 1]
+            [curr]: match[i + 1] || '/'
           }
         }
         return acc;

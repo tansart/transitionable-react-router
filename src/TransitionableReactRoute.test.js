@@ -105,12 +105,12 @@ describe("#TransitionableReactRoute", () => {
 
   it('understands dynamic routes', async () => {
     const props = {
-      currentRoute: '/dynamic/route-one',
+      currentRoute: '/dynamic/',
       timeout: 0
     };
 
     const {queryByTestId} = render(<TestWrapper {...props}/>);
-    expect(queryByTestId('/dynamic/:route').dataset.route).toBe('route-one');
+    expect(queryByTestId('/dynamic/:route').dataset.route).toBe('/');
     await act(async () => await pSleep(1));
     fireEvent.click(queryByTestId('path::/nested/route-one'));
     expect(queryByTestId('/nested/route-one')).toBeTruthy();
