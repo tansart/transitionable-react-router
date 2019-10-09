@@ -117,7 +117,7 @@ export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, ani
           const now = Date.now();
           const newState = [...s];
 
-          for(let i in newState) {
+          for(let i = 0; i < newState.length; i++) {
             const nextTransitionstate = NEXT_STEP_MAP[newState[i].state];
             if(now - newState[i].timestamp >= timeout && nextTransitionstate !== newState[i].state) {
               dirty = true;
@@ -162,28 +162,32 @@ export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, ani
 }
 
 function greedyMatchComponent(routes, currentRoute) {
-  for (let [regExp, isDynamic, component] of routes) {
-    regExp.lastIndex = 0;
+  mainLoop:
+    for (let [regExp, isDynamic, component] of routes) {
+      regExp.lastIndex = 0;
 
-    const match = regExp.exec(currentRoute);
+      const match = regExp.exec(currentRoute);
 
-    if (!match) {
-      continue;
-    }
+      if (!match) {
+        continue;
+      }
 
-    return {
-      component,
-      query: isDynamic.reduce((acc, curr, i) => {
-        if(curr) {
-          return {
-            ...acc,
-            [curr]: match[i + 1] || '/'
+      let query = {};
+      for(let i = 0; i < isDynamic.length; i++) {
+        if(typeof isDynamic[i] === 'string') {
+          query[isDynamic[i]] = match[i + 1];
+
+          if(!match[i + 1]) {
+            continue mainLoop;
           }
         }
-        return acc;
-      }, {}),
-    };
-  }
+      }
+
+      return {
+        component,
+        query
+      };
+    }
 
   return { component: null, attributes: null };
 }

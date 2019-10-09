@@ -7,21 +7,6 @@ import {TransitionableReactRoute} from './TransitionableReactRoute';
 afterEach(cleanup);
 
 describe("#TransitionableReactRoute", () => {
-  it('only shows the targeted section', async () => {
-    const props = {
-      currentRoute: '/',
-      timeout: 0
-    };
-    const {debug, queryByTestId} = render(<TestWrapper {...props}/>);
-    expect(queryByTestId('/')).toBeTruthy();
-    expect(document.querySelectorAll("[data-transitionstate]").length).toEqual(1);
-
-    fireEvent.click(queryByTestId('path::/nested/'));
-    await act(async () => await pSleep(props.timeout));
-    expect(queryByTestId('/nested/')).toBeTruthy();
-    expect(document.querySelectorAll("[data-transitionstate]").length).toEqual(1);
-  });
-
   it('falls back to the default route', async () => {
     const props = {
       currentRoute: '/route-unknown',
@@ -53,7 +38,7 @@ describe("#TransitionableReactRoute", () => {
     expect(document.querySelectorAll("[data-transitionstate]").length).toEqual(1);
   });
 
-  it('sets its animation props accordingly', async () => {
+  it('sets animation props accordingly', async () => {
     const props = {
       animateOnMount: true,
       currentRoute: '/nested/',
@@ -119,34 +104,40 @@ describe("#TransitionableReactRoute", () => {
 
   it('understands dynamic routes', async () => {
     const props = {
-      currentRoute: '/dynamic/',
+      currentRoute: '/dynamic/random',
       timeout: 0
     };
 
     const {queryByTestId, debug} = render(<TestWrapper {...props}/>);
-    expect(queryByTestId('/dynamic/:route').dataset.route).toBe('/');
+    expect(queryByTestId('/dynamic/:route').dataset.route).toBe('random');
     await act(async () => await pSleep(1));
+
     fireEvent.click(queryByTestId('path::/nested/route-one'));
     expect(queryByTestId('/nested/route-one')).toBeTruthy();
     await act(async () => await pSleep(1));
+
     fireEvent.click(queryByTestId('path::/dynamic-two/route-two'));
     await act(async () => await pSleep(1));
     expect(queryByTestId('/dynamic-two/:random-attribute').dataset.randomAttribute).toBe('route-two');
+
     fireEvent.click(queryByTestId('path::/nested-two/some-random-route'));
     await act(async () => await pSleep(1));
     expect(queryByTestId('/nested-two/:route').dataset.route).toBe('some-random-route');
   });
 
-  /*it('properly handles a quick sequence of animation prop changes', async () => {
-    // let the user dictate how to handle this
+  it(`dynamic paths can't be "/"`, async () => {
+    const props = {
+      currentRoute: '/nested-two/',
+      timeout: 0
+    };
 
-    // scenario 1: allow queue to pop some unwanted routes
+    const {queryByTestId} = render(<TestWrapper {...props}/>);
+    expect(document.querySelectorAll("[data-transitionstate]").length).toEqual(0);
 
-    // scenario 2: allow a long sequence of components to hang in there
-
-    // scenario 3: allow to force the state vs pop...?
-  });*/
-
+    fireEvent.click(queryByTestId('path::/dynamic/'));
+    await act(async () => await pSleep(1));
+    expect(queryByTestId('defaultpath')).toBeTruthy();
+  });
 });
 
 function TestWrapper(props) {
@@ -172,10 +163,11 @@ function TestWrapper(props) {
         '/route-five',
         '/dynamic/route-one',
         '/dynamic-two/route-two',
-        '/nested-two/',
         '/nested-two/one',
         '/nested-two/two',
         '/nested-two/some-random-route',
+        '/nested-two/',
+        '/dynamic/'
       ]}
       handler={setRoute}
     />
@@ -197,7 +189,6 @@ function TestWrapper(props) {
         <DisplayPath path={'/dynamic-two/:random-attribute'} />
 
         <TransitionableReactRoute path={'/nested-two'}>
-          <DisplayPath path={'/'} />
           <DisplayPath path={'/one'} />
           <DisplayPath path={'/two'} />
           <DisplayPath path={'/:route'} />
