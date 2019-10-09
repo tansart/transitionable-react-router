@@ -2,6 +2,7 @@ import React, {useContext, useEffect, useState, useRef} from 'react';
 
 import {RouterContext} from './RouterContext';
 
+const IS_SSR = typeof window === 'undefined';
 const TRANSITION_STATES = ['entering', 'entered', 'exiting', 'exited'];
 const NEXT_STEP_MAP = [1,1,3,3];
 /**
@@ -56,7 +57,12 @@ export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, ani
   // The state will hold an abstract list of mounted components.
   // Should be in sync with mountedComponents
   const key = `${currentRoute}_${now}`;
-  const [state, setState] = useState([]);
+  const [state, setState] = useState(IS_SSR ? [{
+    state: animateOnMount ? 0: 1,
+    key,
+    timestamp : now,
+    currentRoute
+  }]: []);
 
   // Only runs once on mount.
   // Needs to run before the first render, hence the use of ref vs useEffect
@@ -202,6 +208,10 @@ function greedyMatchComponent(routes, currentRoute) {
 
 function useMemoisedUpdate(fn, diff) {
   const [currState, setState] = useState([]);
+
+  if(IS_SSR) {
+    return fn();
+  }
 
   useEffect(() => {
     setState(currState => fn(currState))
