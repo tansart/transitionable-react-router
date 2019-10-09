@@ -1,4 +1,4 @@
-import React, {useContext, useEffect, useState, useRef} from 'react';
+import React, {useContext, useEffect, useState, useRef, useMemo} from 'react';
 
 import {RouterContext} from './RouterContext';
 
@@ -15,24 +15,7 @@ const NEXT_STEP_MAP = [1,1,3,3];
  */
 export function mapToRegExp([component, path, parentPath], isNested = false) {
   const fullPath = normalisePath(parentPath ? `${parentPath}/${path}`: path);
-  const mUrl = fullPath.split('/');
-
-  const [regExpPattern, isDynamic] = mUrl
-    .filter(s => !!s)
-    .reduce((acc, curr, i) => {
-      const isDynamic = acc[1];
-      if (curr.indexOf(':') === 0) {
-        isDynamic.push(curr.substring(1));
-        return [`${acc[0]}\\/?([^\\/]+)?`, isDynamic];
-      }
-
-      isDynamic.push(false);
-
-      if (i > 0) {
-        return [`${acc[0]}\\/(${curr})`, isDynamic];
-      }
-      return [`${acc[0]}(${curr})`, isDynamic];
-    }, ['^\\/', []]);
+  const [regExpPattern, isDynamic] = deconstructURL(fullPath);
 
   let regExp = regExpPattern;
   if(isNested) {
@@ -69,12 +52,12 @@ export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, ani
   if (!routes.current.length) {
     // We create a data structure representing the available routes + their regexp
     React.Children.forEach(children, _child => {
-      const {path, defaultPath} = _child.props;
+      const {path, defaultpath} = _child.props;
       const isTransitionableComponent = (_child.type === TransitionableReactRoute);
 
       const properties = {
         ..._child.props,
-        fullPath: defaultPath ? 'defaultPath': normalisePath(`${nestedRoute ? nestedRoute: ''}/${path}`),
+        fullPath: defaultpath ? 'defaultpath': normalisePath(`${nestedRoute ? nestedRoute: ''}/${path}`),
         timeout
       };
 
@@ -85,7 +68,7 @@ export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, ani
 
       const child = React.cloneElement(_child, properties);
 
-      if(defaultPath) {
+      if(defaultpath) {
         routes.current.push([/.*/ig, [false], child]);
       } else {
         routes.current.push(mapToRegExp([child, path, nestedRoute], isTransitionableComponent));
@@ -135,12 +118,12 @@ export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, ani
           const newState = [...s];
 
           for(let i in newState) {
-            const nextTransitionState = NEXT_STEP_MAP[newState[i].state];
-            if(now - newState[i].timestamp >= timeout && nextTransitionState !== newState[i].state) {
+            const nextTransitionstate = NEXT_STEP_MAP[newState[i].state];
+            if(now - newState[i].timestamp >= timeout && nextTransitionstate !== newState[i].state) {
               dirty = true;
               newState[i] = {
                 ...newState[i],
-                state: nextTransitionState
+                state: nextTransitionstate
               };
             }
           }
@@ -157,8 +140,7 @@ export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, ani
     });
   }, [currentRoute]);
 
-  // This replaces useMemo with semantic guarantee
-  return useMemoisedUpdate(() => {
+  return useMemo(() => {
     return state.map(({currentRoute, key, state}) => {
       const matchedComponent = greedyMatchComponent(routes.current, currentRoute);
 
@@ -172,7 +154,7 @@ export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, ani
           key,
           ...matchedComponent.component.props,
           query: matchedComponent.query,
-          transitionState: TRANSITION_STATES[state]
+          transitionstate: TRANSITION_STATES[state]
         }
       );
     });
@@ -206,18 +188,29 @@ function greedyMatchComponent(routes, currentRoute) {
   return { component: null, attributes: null };
 }
 
-function useMemoisedUpdate(fn, diff) {
-  const [currState, setState] = useState([]);
+function deconstructURL(fullPath) {
+  const mUrl = fullPath.split('/');
 
-  if(IS_SSR) {
-    return fn();
+  if(fullPath === '/') {
+    return [`^`, [false]];
   }
 
-  useEffect(() => {
-    setState(currState => fn(currState))
-  }, diff);
+  return mUrl
+    .filter(s => !!s)
+    .reduce((acc, curr, i) => {
+      const isDynamic = acc[1];
+      if (curr.indexOf(':') === 0) {
+        isDynamic.push(curr.substring(1));
+        return [`${acc[0]}\\/?([^\\/]+)?`, isDynamic];
+      }
 
-  return currState;
+      isDynamic.push(false);
+
+      if (i > 0) {
+        return [`${acc[0]}\\/(${curr})`, isDynamic];
+      }
+      return [`${acc[0]}(${curr})`, isDynamic];
+    }, ['^\\/', []]);
 }
 
 function normalisePath(path = '') {

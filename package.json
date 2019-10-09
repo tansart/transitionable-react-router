@@ -6,8 +6,8 @@
   "scripts": {
     "start": "BABEL_ENV=build rollup -c ./rollup.config.js --watch",
     "build": "BABEL_ENV=build rollup -c ./rollup.config.js --compact",
-    "test": "BABEL_ENV=test jest --useStderr --watch --colors",
-    "test:ssr": "BABEL_ENV=test jest --useStderr --watch --colors --env=node ./src/ssr.test.js"
+    "test": "BABEL_ENV=test jest --useStderr --watch --colors --testPathIgnorePatterns='ssr.test.js'",
+    "test:ssr": "BABEL_ENV=test jest --useStderr --watch --colors --env=node src/ssr.test.js"
   },
   "repository": {
     "type": "git",

@@ -7,6 +7,21 @@ import {TransitionableReactRoute} from './TransitionableReactRoute';
 afterEach(cleanup);
 
 describe("#TransitionableReactRoute", () => {
+  it('only shows the targeted section', async () => {
+    const props = {
+      currentRoute: '/',
+      timeout: 0
+    };
+    const {debug, queryByTestId} = render(<TestWrapper {...props}/>);
+    expect(queryByTestId('/')).toBeTruthy();
+    expect(document.querySelectorAll("[data-transitionstate]").length).toEqual(1);
+
+    fireEvent.click(queryByTestId('path::/nested/'));
+    await act(async () => await pSleep(props.timeout));
+    expect(queryByTestId('/nested/')).toBeTruthy();
+    expect(document.querySelectorAll("[data-transitionstate]").length).toEqual(1);
+  });
+
   it('falls back to the default route', async () => {
     const props = {
       currentRoute: '/route-unknown',
@@ -15,17 +30,16 @@ describe("#TransitionableReactRoute", () => {
 
     const {queryByTestId} = render(<TestWrapper {...props}/>);
 
-    expect(queryByTestId('defaultPath')).toBeTruthy();
+    expect(queryByTestId('defaultpath')).toBeTruthy();
   });
 
   it('only shows the targeted section', async () => {
     const props = {
-      currentRoute: '/route-three',
+      currentRoute: '/',
       timeout: 0
     };
-    const {queryByTestId, debug} = render(<TestWrapper {...props}/>);
-
-    expect(queryByTestId('/route-three')).toBeTruthy();
+    const {queryByTestId} = render(<TestWrapper {...props}/>);
+    expect(queryByTestId('/')).toBeTruthy();
     expect(document.querySelectorAll("[data-transitionstate]").length).toEqual(1);
 
     fireEvent.click(queryByTestId('path::/nested/'));
@@ -149,6 +163,7 @@ function TestWrapper(props) {
   return <>
     <Nav
       paths={[
+        '/',
         '/nested/',
         '/nested/route-one',
         '/nested/route-two',
@@ -166,6 +181,8 @@ function TestWrapper(props) {
     />
     <RouterContext.Provider value={{currentRoute, previousRoute: prevRoute.current}}>
       <TransitionableReactRoute animateOnMount={animateOnMount} timeout={timeout}>
+        <DisplayPath path={'/'} />
+
         <TransitionableReactRoute path={'/nested'}>
           <DisplayPath path={'/'} />
           <DisplayPath path={'/route-one'} />
@@ -186,7 +203,7 @@ function TestWrapper(props) {
           <DisplayPath path={'/:route'} />
         </TransitionableReactRoute>
 
-        <DisplayPath defaultPath />
+        <DisplayPath defaultpath />
       </TransitionableReactRoute>
     </RouterContext.Provider>
   </>
@@ -202,7 +219,7 @@ function Nav({paths, handler}) {
   />)
 }
 
-function DisplayPath({path, transitionState, fullPath, query = {}}) {
+function DisplayPath({path, transitionstate, fullPath, query = {}}) {
   const routes = Object.keys(query).reduce((acc, k) => {
     acc[`data-${k.toLowerCase()}`] = query[k];
     return acc;
@@ -210,7 +227,7 @@ function DisplayPath({path, transitionState, fullPath, query = {}}) {
 
   return React.createElement('span', {
     'data-testid': fullPath,
-    'data-transitionstate': transitionState,
+    'data-transitionstate': transitionstate,
     ...routes
   }, path);
 }
