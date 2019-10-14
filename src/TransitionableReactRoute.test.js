@@ -138,10 +138,40 @@ describe("#TransitionableReactRoute", () => {
     await act(async () => await pSleep(1));
     expect(queryByTestId('defaultpath')).toBeTruthy();
   });
+
+  it(`Invokes the preRouteChange callback before the route gets rendered`, async () => {
+    const stateTracker = {
+      arg0: null,
+      arg1: null,
+      routes: []
+    };
+    const props = {
+      currentRoute: '/route-three',
+      timeout: 0,
+      preRouteChange: (currRoute, prevRoute) => {
+        stateTracker.arg0 = currRoute;
+        stateTracker.arg1 = prevRoute;
+        stateTracker.routes = Array.from(document.querySelectorAll('[data-transitionstate]'), n => [
+          n.dataset.testid,
+          n.dataset.transitionstate
+        ]);
+      }
+    };
+
+    const {queryByTestId} = render(<TestWrapper {...props}/>);
+    expect(stateTracker).toEqual({arg0: '/route-three', arg1: null, routes: []});
+
+    fireEvent.click(queryByTestId('path::/route-four'));
+    await act(async () => await pSleep(1));
+    expect(stateTracker).toEqual({arg0: '/route-four', arg1: '/route-three', routes: [['/route-three', 'entered']]});
+
+    fireEvent.click(queryByTestId('path::/route-five'));
+    expect(stateTracker).toEqual({arg0: '/route-five', arg1: '/route-four', routes: [['/route-four', 'entered']]});
+  });
 });
 
 function TestWrapper(props) {
-  const {animateOnMount, timeout} = props;
+  const {animateOnMount, timeout, preRouteChange} = props;
 
   const [currentRoute, setRoute] = useState(props.currentRoute);
 
@@ -172,7 +202,7 @@ function TestWrapper(props) {
       handler={setRoute}
     />
     <RouterContext.Provider value={{currentRoute, previousRoute: prevRoute.current}}>
-      <TransitionableReactRoute animateOnMount={animateOnMount} timeout={timeout}>
+      <TransitionableReactRoute animateOnMount={animateOnMount} timeout={timeout} preRouteChange={preRouteChange}>
         <DisplayPath path={'/'} />
 
         <TransitionableReactRoute path={'/nested'}>
