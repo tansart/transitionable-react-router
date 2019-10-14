@@ -4,9 +4,32 @@ import {RouterContext} from './RouterContext';
 
 const IS_SSR = typeof window === 'undefined';
 const TRANSITION_STATES = ['entering', 'entered', 'exiting', 'exited'];
-const NEXT_STEP_MAP = [1,1,3,3]; // Given a state {0...3} as the index, you get the mapped next state.
+const NEXT_STEP_MAP = [1,1,3,3];
+/**
+ * Given a pseudo url, we create an array that contains a regExp to match against a url,
+ * an array indicating any dynamic url (/static/:dynamic_file_name), which will become a props,
+ * and the component that should be mounted when given a matching url
+ * @param pattern
+ * @param component
+ * @returns {[regExp, array, component]}
+ */
+export function mapToRegExp([component, path, parentPath], isNested = false) {
+  const fullPath = normalisePath(parentPath ? `${parentPath}/${path}`: path);
+  const [regExpPattern, isDynamic] = deconstructURL(fullPath);
 
-export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, animateOnMount, children, preRouteChange}) {
+  let regExp = regExpPattern;
+  if(isNested) {
+    // when nested, we need the regExp to have a wildcard match
+    regExp = `${regExpPattern}\\/.*`;
+  } else if(path === '/') {
+    // given the filter above, we need to have this exception where '/' is added when needed
+    regExp = `${regExpPattern}\\/`;
+  }
+
+  return [new RegExp(`${regExp}$`, 'ig'), isDynamic, component];
+}
+
+export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, animateOnMount, children}) {
   const now = Date.now();
   const routes = useRef([]);
   const timeoutRefs = useRef([]);
@@ -59,7 +82,6 @@ export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, ani
   }, []);
 
   useEffect(() => {
-    (typeof preRouteChange === 'function' && preRouteChange(router.currentRoute, router.previousRoute));
     setState(s => {
       const nState = [...s];
       const now = Date.now();
@@ -168,30 +190,6 @@ function greedyMatchComponent(routes, currentRoute) {
     }
 
   return { component: null, attributes: null };
-}
-
-/**
- * Given a pseudo url, we create an array that contains a regExp to match against a url,
- * an array indicating any dynamic url (/static/:dynamic_file_name), which will become a props,
- * and the component that should be mounted when given a matching url
- * @param pattern
- * @param component
- * @returns {[regExp, array, component]}
- */
-function mapToRegExp([component, path, parentPath], isNested = false) {
-  const fullPath = normalisePath(parentPath ? `${parentPath}/${path}`: path);
-  const [regExpPattern, isDynamic] = deconstructURL(fullPath);
-
-  let regExp = regExpPattern;
-  if(isNested) {
-    // when nested, we need the regExp to have a wildcard match
-    regExp = `${regExpPattern}\\/.*`;
-  } else if(path === '/') {
-    // given the filter above, we need to have this exception where '/' is added when needed
-    regExp = `${regExpPattern}\\/`;
-  }
-
-  return [new RegExp(`${regExp}$`, 'ig'), isDynamic, component];
 }
 
 function deconstructURL(fullPath) {
