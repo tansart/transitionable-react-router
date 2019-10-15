@@ -8,18 +8,18 @@ export function Router({children}) {
   const setRoute = path => {
     window.history.pushState({}, null, path);
 
-    setState({
+    setState(nState => ({
       currentRoute: window.location.pathname,
-      previousRoute: state.currentRoute
-    });
+      previousRoute: nState.currentRoute
+    }));
   };
 
   useEffect(() => {
     function onPopState() {
-      setState({
+      setState(nState => ({
         currentRoute: `/${window.location.pathname}`.replace('//', '/'),
-        previousRoute: state.currentRoute
-      });
+        previousRoute: nState.currentRoute
+      }));
     }
 
     window.addEventListener('popstate', onPopState);
