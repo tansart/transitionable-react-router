@@ -32,6 +32,13 @@ describe("#TransitionableReactRoute", () => {
     expect(queryByTestId('/nested/')).toBeTruthy();
     expect(document.querySelectorAll("[data-transitionstate]").length).toEqual(1);
 
+    fireEvent.click(queryByTestId('path::/nested/route-one'));
+    fireEvent.click(queryByTestId('path::/route-three'));
+    fireEvent.click(queryByTestId('path::/nested/route-two'));
+    await act(async () => await pSleep(props.timeout));
+    expect(queryByTestId('/nested/route-two')).toBeTruthy();
+    expect(document.querySelectorAll("[data-transitionstate]").length).toEqual(1);
+
     fireEvent.click(queryByTestId('path::/route-five'));
     expect(queryByTestId('/route-five')).toBeTruthy();
     await act(async () => await pSleep(props.timeout));
@@ -108,7 +115,7 @@ describe("#TransitionableReactRoute", () => {
       timeout: 0
     };
 
-    const {queryByTestId, debug} = render(<TestWrapper {...props}/>);
+    const {queryByTestId} = render(<TestWrapper {...props}/>);
     expect(queryByTestId('/dynamic/:route').dataset.route).toBe('random');
     await act(async () => await pSleep(1));
 

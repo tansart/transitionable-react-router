@@ -29,7 +29,7 @@ export function mapToRegExp([component, path, parentPath], isNested = false) {
   return [new RegExp(`${regExp}$`, 'ig'), isDynamic, component];
 }
 
-export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, animateOnMount, children}) {
+export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, animateOnMount, children, ...props}) {
   const now = Date.now();
   const routes = useRef([]);
   const timeoutRefs = useRef([]);
@@ -82,19 +82,30 @@ export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, ani
   }, []);
 
   useEffect(() => {
-    setState(s => {
+    // this is matching on an old parent
+    const isUnmountingComponent = props.transitionstate === TRANSITION_STATES[2];
+    !isUnmountingComponent && setState(s => {
       const nState = [...s];
       const now = Date.now();
 
-      const latestRoute = (last(nState) || {}).currentRoute;
+      const prevRoute = (last(nState) || {}).currentRoute;
+      const isSameParent = checkIfSameParent(prevRoute, router.currentRoute, routes);
 
-      const prevComponent = greedyMatchComponent(routes.current, currentRoute);
-      const nextComponent = greedyMatchComponent(routes.current, latestRoute);
+      const dirtyIndexes = [];
+      const prevIndex = nState.length - 1;
 
-      const isParent = prevComponent.component && prevComponent.component.type === TransitionableReactRoute;
-      const isPrevParent = nextComponent.component && nextComponent.component.type === TransitionableReactRoute;
+      // Let's force the previous route to unmount
+      if(nState.length > 0 && nState[prevIndex].state < 2 && !isSameParent) {
+        dirtyIndexes.push(prevIndex);
+        nState[prevIndex] = {
+          ...nState[prevIndex],
+          now,
+          state: 2
+        };
+      }
 
-      if(!isPrevParent || !isParent) {
+      if(!isSameParent) {
+        dirtyIndexes.push(nState.length);
         nState.push({
           state: animateOnMount ? 0: 1,
           key,
@@ -103,38 +114,13 @@ export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, ani
         });
       }
 
-      if(nState.length > 1) {
-        nState[nState.length - 2] = {
-          ...nState[nState.length - 2],
-          now,
-          state: 2
-        };
-      }
+      dirtyIndexes.forEach((index) => {
+        const id = setTimeout(() => onAnimationEnd(setState, timeout), timeout);
 
-      timeoutRefs.current.push(setTimeout(() => {
-        setState(s => {
-          let dirty = false;
-          const now = Date.now();
-          const newState = [...s];
-
-          for(let i = 0; i < newState.length; i++) {
-            const nextTransitionstate = NEXT_STEP_MAP[newState[i].state];
-            if(now - newState[i].timestamp >= timeout && nextTransitionstate !== newState[i].state) {
-              dirty = true;
-              newState[i] = {
-                ...newState[i],
-                state: nextTransitionstate
-              };
-            }
-          }
-
-          if(dirty) {
-            return newState.filter(({state}) => state < 3);
-          }
-
-          return s;
-        });
-      }, timeout));
+        clearTimeout(nState[index].timeoutRef);
+        timeoutRefs.current.push(id);
+        nState[index].timeoutRef = id;
+      });
 
       return nState;
     });
@@ -159,6 +145,57 @@ export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, ani
       );
     });
   }, [state]);
+}
+
+function checkIfSameParent(prevRoute, currRoute, routes) {
+  const pMatch = matchRoute(routes, prevRoute);
+  const cMatch = matchRoute(routes, currRoute);
+
+  if(!cMatch || !pMatch) {
+    return null;
+  }
+
+  return (pMatch[pMatch.length - 1] === cMatch[cMatch.length - 1]);
+}
+
+function matchRoute(routes, route) {
+  if(!route) {
+    return null;
+  }
+
+  for (let [regExp] of routes.current) {
+    regExp.lastIndex = 0;
+    const m = regExp.exec(route);
+
+    if(m) {
+      return m;
+    }
+  }
+}
+
+function onAnimationEnd(setState, timeout) {
+  setState(s => {
+    let dirty = false;
+    const now = Date.now();
+    const newState = [...s];
+
+    for(let i = 0; i < newState.length; i++) {
+      const nextTransitionstate = NEXT_STEP_MAP[newState[i].state];
+      if(now - newState[i].timestamp >= timeout && nextTransitionstate !== newState[i].state) {
+        dirty = true;
+        newState[i] = {
+          ...newState[i],
+          state: nextTransitionstate
+        };
+      }
+    }
+
+    if(dirty) {
+      return newState.filter(({state}) => state < 3);
+    }
+
+    return s;
+  });
 }
 
 function greedyMatchComponent(routes, currentRoute) {
