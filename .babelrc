@@ -14,7 +14,8 @@
         [
           "@babel/preset-env",
           {
-            "modules": false
+            "modules": false,
+            "targets": "last 2 years"
           }
         ],
         "@babel/preset-react"
