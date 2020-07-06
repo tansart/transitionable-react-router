@@ -63,7 +63,7 @@ describe("#TransitionableReactRoute", () => {
     expect(queryByTestId('/nested/route-one').dataset.transitionstate).toBe('exiting');
     expect(queryByTestId('/nested/route-two').dataset.transitionstate).toBe('entering');
 
-    await act(async () => await pSleep(props.timeout));
+    await act(async () => await pSleep(props.timeout + 16));
     expect(queryByTestId('/nested/route-two').dataset.transitionstate).toBe('entered');
     expect(document.querySelectorAll("[data-transitionstate]").length).toBe(1);
 
@@ -72,7 +72,7 @@ describe("#TransitionableReactRoute", () => {
     expect(queryByTestId('/nested/route-two').dataset.transitionstate).toBe('exiting');
     expect(queryByTestId('/route-five').dataset.transitionstate).toBe('entering');
 
-    await act(async () => await pSleep(props.timeout * .5));
+    await act(async () => await pSleep(props.timeout * .75));
     expect(queryByTestId('/route-five').dataset.transitionstate).toBe('entered');
     expect(queryByTestId('/nested/route-two')).toBeNull();
   });
@@ -144,6 +144,30 @@ describe("#TransitionableReactRoute", () => {
     fireEvent.click(queryByTestId('path::/dynamic/'));
     await act(async () => await pSleep(1));
     expect(queryByTestId('defaultpath')).toBeTruthy();
+  });
+
+  it(`allows for timeouts props to be updated`, async () => {
+    const props = {
+      animateOnMount: true,
+      currentRoute: '/nested-two/one',
+      timeout: 0
+    };
+
+    const {queryByTestId, rerender} = render(<TestWrapper {...props}/>);
+
+    fireEvent.click(queryByTestId('path::/nested-two/two'));
+    expect(queryByTestId('/nested-two/one').dataset.transitionstate).toBe('exiting');
+    expect(queryByTestId('/nested-two/two').dataset.transitionstate).toBe('entering');
+
+    rerender(<TestWrapper animateOnMount={true} timeout={100} />);
+
+    fireEvent.click(queryByTestId('path::/route-four'));
+    await act(async () => await pSleep(1));
+    expect(queryByTestId('/nested-two/two').dataset.transitionstate).toBe('exiting');
+    expect(queryByTestId('/route-four').dataset.transitionstate).toBe('entering');
+
+    await act(async () => await pSleep(110));
+    expect(queryByTestId('/route-four').dataset.transitionstate).toBe('entered');
   });
 });
 
@@ -231,5 +255,5 @@ function DisplayPath({path, transitionstate, fullPath, query = {}}) {
 }
 
 function pSleep(time) {
-  return new Promise(r => setTimeout(r, time)).catch(e => console.log(`oops following issue with pSleep ${JSON.stringify(e, null, 2)}`));
+  return new Promise(r => setTimeout(r, Math.max(16, time))).catch(e => console.log(`oops following issue with pSleep ${JSON.stringify(e, null, 2)}`));
 }

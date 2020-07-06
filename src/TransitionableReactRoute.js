@@ -32,7 +32,7 @@ export function mapToRegExp([component, path, parentPath], isNested = false) {
 export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, animateOnMount, children, ...props}) {
   const now = Date.now();
   const routes = useRef([]);
-  const timeoutRefs = useRef([]);
+  const timeoutRef = useRef(timeout);
 
   const router = useContext(RouterContext);
   const currentRoute = router.currentRoute;
@@ -76,55 +76,75 @@ export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, ani
     });
   }
 
-  useEffect(() => () => {
-    timeoutRefs.current.forEach(clearTimeout);
-    timeoutRefs.current = [];
+  useEffect(() => {
+    // if this is not an EXITING parent
+    if(props.transitionstate !== TRANSITION_STATES[2]) {
+      setState(s => {
+        const nState = [...s];
+        const now = Date.now();
+
+        const prevRoute = (last(nState) || {}).currentRoute;
+        const isSameParent = checkIfSameParent(prevRoute, router.currentRoute, routes);
+
+        const dirtyIndexes = [];
+        const prevIndex = nState.length - 1;
+
+        // Let's force the previous route to unmount
+        if(nState.length > 0 && nState[prevIndex].state < 2 && !isSameParent) {
+          dirtyIndexes.push(prevIndex);
+          nState[prevIndex] = {
+            ...nState[prevIndex],
+            timestamp : now,
+            state: 2
+          };
+        }
+
+        if(!isSameParent) {
+          dirtyIndexes.push(nState.length);
+          nState.push({
+            state: animateOnMount ? 0: 1,
+            key,
+            timestamp : now,
+            currentRoute
+          });
+        }
+
+        return nState;
+      });
+    }
+  }, [currentRoute]);
+
+  // FIXME: This isn't great. I need to update this.
+  useEffect(() => {
+    let id;
+    let unmounted = false;
+
+    const req = () => {
+      id = requestAnimationFrame(() => {
+        !unmounted && onAnimationEnd(setState, timeoutRef.current);
+        req();
+      })
+    };
+
+    id = req();
+
+    return () => {
+      unmounted = true;
+      cancelAnimationFrame(id);
+    };
   }, []);
 
   useEffect(() => {
-    // this is matching on an old parent
-    const isUnmountingComponent = props.transitionstate === TRANSITION_STATES[2];
-    !isUnmountingComponent && setState(s => {
-      const nState = [...s];
-      const now = Date.now();
-
-      const prevRoute = (last(nState) || {}).currentRoute;
-      const isSameParent = checkIfSameParent(prevRoute, router.currentRoute, routes);
-
-      const dirtyIndexes = [];
-      const prevIndex = nState.length - 1;
-
-      // Let's force the previous route to unmount
-      if(nState.length > 0 && nState[prevIndex].state < 2 && !isSameParent) {
-        dirtyIndexes.push(prevIndex);
-        nState[prevIndex] = {
-          ...nState[prevIndex],
-          now,
-          state: 2
-        };
-      }
-
-      if(!isSameParent) {
-        dirtyIndexes.push(nState.length);
-        nState.push({
-          state: animateOnMount ? 0: 1,
-          key,
-          timestamp : now,
-          currentRoute
-        });
-      }
-
-      dirtyIndexes.forEach((index) => {
-        const id = setTimeout(() => onAnimationEnd(setState, timeout), timeout);
-
-        clearTimeout(nState[index].timeoutRef);
-        timeoutRefs.current.push(id);
-        nState[index].timeoutRef = id;
+    // avoids running the following on mount
+    if(timeout !== timeoutRef.current) {
+      routes.current = routes.current.map(([regExp, isDynamic, component]) => {
+        const nComponent = timeout !== component.props.timeout ? React.cloneElement(component, {timeout}): component;
+        return [regExp, isDynamic, nComponent];
       });
 
-      return nState;
-    });
-  }, [currentRoute]);
+      timeoutRef.current = timeout;
+    }
+  }, [timeout]);
 
   return useMemo(() => {
     return state.map(({currentRoute, key, state}) => {
