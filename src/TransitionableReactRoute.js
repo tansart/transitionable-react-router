@@ -29,7 +29,7 @@ export function mapToRegExp([component, path, parentPath], isNested = false) {
   return [new RegExp(`${regExp}$`, 'ig'), isDynamic, component];
 }
 
-export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, animateOnMount, children, ...props}) {
+export function TransitionableReactRoute({animateOnMount, children, onRouteChange = noop, path: nestedRoute, timeout = 1000, ...props}) {
   const now = Date.now();
   const routes = useRef([]);
   const timeoutRef = useRef(timeout);
@@ -77,6 +77,7 @@ export function TransitionableReactRoute({path: nestedRoute, timeout = 1000, ani
   }
 
   useEffect(() => {
+    onRouteChange(currentRoute);
     // if this is not an EXITING parent
     if(props.transitionstate !== TRANSITION_STATES[2]) {
       setState(s => {
@@ -281,3 +282,5 @@ function normalisePath(path = '') {
 function last(arr = []) {
   return arr[arr.length - 1];
 }
+
+function noop() {}

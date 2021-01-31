@@ -169,6 +169,32 @@ describe("#TransitionableReactRoute", () => {
     await act(async () => await pSleep(110));
     expect(queryByTestId('/route-four').dataset.transitionstate).toBe('entered');
   });
+
+  it('onRouteChange function gets invoked with the current route', async () => {
+    let currentRoute = '/route-unknown';
+    const callback = jest.fn();
+
+    const props = {
+      currentRoute,
+      timeout: 0,
+      callback
+    };
+
+    const {queryByTestId} = render(<TestWrapper {...props}/>);
+
+    expect(callback).toHaveBeenCalledTimes(1);
+    expect(callback).toHaveBeenLastCalledWith(currentRoute);
+
+    currentRoute = '/nested-two/two';
+    fireEvent.click(queryByTestId(`path::${currentRoute}`));
+    expect(callback).toHaveBeenCalledTimes(2);
+    expect(callback).toHaveBeenLastCalledWith(currentRoute);
+
+    currentRoute = '/nested-two/some-random-route';
+    fireEvent.click(queryByTestId(`path::${currentRoute}`));
+    expect(callback).toHaveBeenCalledTimes(3);
+    expect(callback).toHaveBeenLastCalledWith(currentRoute);
+  });
 });
 
 function TestWrapper(props) {
@@ -203,7 +229,7 @@ function TestWrapper(props) {
       handler={setRoute}
     />
     <RouterContext.Provider value={{currentRoute, previousRoute: prevRoute.current}}>
-      <TransitionableReactRoute animateOnMount={animateOnMount} timeout={timeout}>
+      <TransitionableReactRoute animateOnMount={animateOnMount} onRouteChange={props.callback} timeout={timeout}>
         <DisplayPath path={'/'} />
 
         <TransitionableReactRoute path={'/nested'}>
