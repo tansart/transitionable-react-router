@@ -2,7 +2,7 @@
   "name": "@stilva/transitionable-react-router",
   "version": "1.0.0",
   "description": "",
-  "main": "./dist/transitionableReactRouter.cjs.js",
+  "main": "./dist/TransitionableReactRouter.cjs.js",
   "scripts": {
     "start": "BABEL_ENV=build rollup -c ./rollup.config.js --watch",
     "build": "BABEL_ENV=build rollup -c ./rollup.config.js --compact",
