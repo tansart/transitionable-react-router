@@ -1,6 +1,7 @@
 import React, {useContext, useEffect, useState, useRef, useMemo} from 'react';
 
 import {RouterContext} from './RouterContext';
+import { last, noop, normalisePath } from './utils';
 
 const IS_SSR = typeof window === 'undefined';
 const TRANSITION_STATES = ['entering', 'entered', 'exiting', 'exited'];
@@ -274,13 +275,3 @@ function deconstructURL(fullPath) {
       return [`${acc[0]}(${curr})`, isDynamic];
     }, ['^\\/', []]);
 }
-
-function normalisePath(path = '') {
-  return path.replace('//', '/');
-}
-
-function last(arr = []) {
-  return arr[arr.length - 1];
-}
-
-function noop() {}

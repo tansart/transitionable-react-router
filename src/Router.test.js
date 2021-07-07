@@ -1,7 +1,7 @@
 import React from 'react';
 import {act, fireEvent, render, cleanup} from '@testing-library/react';
 
-import {Router} from './Router';
+import {Router, trimBase} from './Router';
 import {RouterContext} from './RouterContext';
 
 afterAll(cleanup);
@@ -46,6 +46,21 @@ describe("#Router", () => {
     });
     expect(last(_currentRoute)).toBe('/random-path');
     expect(last(_previousRoute)).toBe('/route-one');
+  });
+});
+
+describe("#Router trimBase", () => {
+  it('trims the base correctly', async () => {
+    expect(trimBase('/')).toBe('/');
+    expect(trimBase('/', '/')).toBe('/');
+    expect(trimBase('/path')).toBe('/path');
+    expect(trimBase('/path/path', 'path')).toBe('/path');
+    expect(trimBase('/current/path')).toBe('/current/path');
+    expect(trimBase('/current/path', 'current')).toBe('/path');
+    expect(trimBase('/current/path', 'current/')).toBe('/path');
+    expect(trimBase('/current/path', '/current')).toBe('/path');
+    expect(trimBase('/current/path', '/current/')).toBe('/path');
+    expect(trimBase('/current/lengthy-er/nested/path', '/current/')).toBe('/lengthy-er/nested/path');
   });
 });
 
