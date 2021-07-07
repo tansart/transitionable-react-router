@@ -1,7 +1,6 @@
 import React, {useState, useEffect} from 'react';
 
 import {RouterContext} from './RouterContext';
-import { normalisePath } from './utils';
 
 export function Router({base = '/', children}) {
   const [state, setState] = useState({currentRoute: trimBase(window.location.pathname, base), previousRoute: ''});
