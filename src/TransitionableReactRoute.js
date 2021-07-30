@@ -199,21 +199,25 @@ function onAnimationEnd(setState, timeout) {
   setState(s => {
     let dirty = false;
     const now = Date.now();
-    const newState = [...s];
+    const newState = [];
 
-    for(let i = 0; i < newState.length; i++) {
-      const nextTransitionstate = NEXT_STEP_MAP[newState[i].state];
-      if(now - newState[i].timestamp >= timeout && nextTransitionstate !== newState[i].state) {
+    for(let i = 0; i < s.length; i++) {
+      const nextTransitionstate = NEXT_STEP_MAP[s[i].state];
+      if(now - s[i].timestamp >= timeout && nextTransitionstate !== s[i].state) {
         dirty = true;
-        newState[i] = {
-          ...newState[i],
-          state: nextTransitionstate
-        };
+        if(nextTransitionstate < 3) {
+          newState.push({
+            ...s[i],
+            state: nextTransitionstate
+          });
+        }
+      } else if(s[i].state < 3) {
+        newState.push(s[i]);
       }
     }
 
     if(dirty) {
-      return newState.filter(({state}) => state < 3);
+      return newState;
     }
 
     return s;
