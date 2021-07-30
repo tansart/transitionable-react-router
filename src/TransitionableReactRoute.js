@@ -41,12 +41,12 @@ export function TransitionableReactRoute({animateOnMount, children, onRouteChang
   // The state will hold an abstract list of mounted components.
   // Should be in sync with mountedComponents
   const key = `${currentRoute}_${now}`;
-  const [state, setState] = useState(IS_SSR ? [{
+  const [state, setState] = useState([{
     state: animateOnMount ? 0: 1,
     key,
     timestamp : now,
     currentRoute
-  }]: []);
+  }]);
 
   // Only runs once on mount.
   // Needs to run before the first render, hence the use of ref vs useEffect
@@ -109,6 +109,10 @@ export function TransitionableReactRoute({animateOnMount, children, onRouteChang
             timestamp : now,
             currentRoute
           });
+        }
+
+        if(!dirtyIndexes.length) {
+          return s;
         }
 
         return nState;
