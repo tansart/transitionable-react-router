@@ -6,7 +6,7 @@ export function Router({base = '/', children}) {
   const [state, setState] = useState({currentRoute: trimBase(window.location.pathname, base), previousRoute: ''});
 
   const setRoute = path => {
-    window.history.pushState({}, null, `${base}${base.lastIndexOf('/') === base.length - 1 ? '': '/'}${path}`);
+    window.history.pushState({}, null, `${base}/${path}`.replace(/\/\/\/?/i, '/'));
 
     setState(nState => ({
       currentRoute: trimBase(window.location.pathname, base),
