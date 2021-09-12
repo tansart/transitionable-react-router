@@ -41,7 +41,7 @@ export function trimBase(pathname, base = '/') {
     baseRegexp[base] = new RegExp(`^/?${base}/?(.*)`, 'ig');
   }
 
-  baseRegexp[base].lastIndex = -1;
+  baseRegexp[base].lastIndex = 0;
 
   return `/${baseRegexp[base].exec(pathname)[1]}`;
 }
